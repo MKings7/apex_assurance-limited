@@ -19,7 +19,7 @@ if (is_logged_in()) {
             header("Location: emergency/index.php");
             break;
         default:
-            header("Location: dashboard.php");
+            header("Location: users/index.php"); // Redirect to users folder for policyholders
             break;
     }
     exit;
@@ -78,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             header("Location: emergency/index.php");
                             break;
                         default:
-                            header("Location: dashboard.php");
+                            header("Location: users/index.php"); // Redirect to users folder for policyholders
                             break;
                     }
                     exit;

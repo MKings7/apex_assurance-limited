@@ -3,7 +3,7 @@
 define('DB_SERVER', 'localhost');
 define('DB_USERNAME', 'root');
 define('DB_PASSWORD', '');
-define('DB_NAME', 'apexdb');
+define('DB_NAME', 'apex');
 
 // Application configuration
 define('SITE_NAME', 'Apex Assurance');
