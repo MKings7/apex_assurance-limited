@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Dashboard - Apex Assurance</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        :root {
+            --primary-color: #0056b3;
+            --secondary-color: #00b359;
+            --dark-color: #333;
+            --light-color: #f4f4f4;
+            --sidebar-color: #2c3e50;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --info-color: #17a2b8;
+            --employee-color: #2ecc71;
+        }
+        
+        body {
+            line-height: 1.6;
+            background-color: #f8f9fa;
+            color: var(--dark-color);
+        }
+        
+        .dashboard-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-color);
+            color: white;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            transition: all 0.3s;
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        
+        .sidebar-header h2 {
+            color: white;
+            font-size: 1.5rem;
+        }
+        
+        .sidebar-header .role-badge {
+            background-color: var(--employee-color);
+            color: white;
+            font-size: 0.7rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+        
+        .menu-category {
+            margin-bottom: 15px;
+            padding: 0 20px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .sidebar-menu ul {
+            list-style: none;
+        }
+        
+        .sidebar-menu li {
+            margin-bottom: 5px;
+        }
+        
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        
+        .sidebar-menu a:hover, 
+        .sidebar-menu a.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            border-left: 4px solid var(--employee-color);
+        }
+        
+        .sidebar-menu i {
+            margin-right: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            overflow: hidden;
+            margin-right: 10px;
+            background-color: var(--employee-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        
+        .user-details {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .user-role {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .content-title h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+        
+        .header-actions .btn {
+            margin-left: 10px;
+        }
+        
+        /* Search Bar */
+        .search-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .search-input {
+            flex: 1;
+            position: relative;
+        }
+        
+        .search-input input {
+            width: 100%;
+            padding: 12px 15px 12px 40px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input i {
+            position: absolute;
+            top: 50%;
+            left: 15px;
+            transform: translateY(-50%);
+            color: #888;
+        }
+        
+        .search-input input:focus {
+            border-color: var(--employee-color);
+            outline: none;
+        }
+        
+        .search-filters select {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            background-color: white;
+        }
+        
+        .search-filters select:focus {
+            border-color: var(--employee-color);
+            outline: none;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .btn:hover {
+            background-color: #0045a2;
+        }
+        
+        .btn-employee {
+            background-color: var(--employee-color);
+        }
+        
+        .btn-employee:hover {
+            background-color: #27ae60;
+        }
+        
+        /* Dashboard Stats */
+        .dashboard-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 1.5rem;
+            color: white;
+        }
+        
+        .stat-icon.green {
+            background-color: var(--employee-color);
+        }
+        
+        .stat-icon.primary {
+            background-color: var(--primary-color);
+        }
+        
+        .stat-icon.success {
+            background-color: var(--success-color);
+        }
+        
+        .stat-icon.warning {
+            background-color: var(--warning-color);
+        }
+        
+        .stat-icon.danger {
+            background-color: var(--danger-color);
+        }
+        
+        .stat-details h3 {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-details p {
+            color: #777;
+            font-size: 0.9rem;
+            margin: 0;
+        }
+        
+        /* Customers Table */
+        .customers-section, .policies-section {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .section-header h2 {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .view-all {
+            color: var(--employee-color);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .view-all:hover {
+            text-decoration: underline;
+        }
+        
+        .customers-table, .policies-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .customers-table th, 
+        .customers-table td,
+        .policies-table th,
+        .policies-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .customers-table th,
+        .policies-table th {
+            font-weight: 600;
+            color: #555;
+            font-size: 0.9rem;
+        }
+        
+        .customers-table tr:last-child td,
+        .policies-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .customers-table tr:hover,
+        .policies-table tr:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .status.active {
+            background-color: rgba(46, 204, 113, 0.1);
+            color: var(--employee-color);
+        }
+        
+        .status.pending {
+            background-color: rgba(255, 193, 7, 0.1);
+            color: var(--warning-color);
+        }
+        
+        .status.expired {
+            background-color: rgba(220, 53, 69, 0.1);
+            color: var(--danger-color);
+        }
+        
+        /* Action Buttons */
+        .actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            background-color: transparent;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .action-btn.view {
+            color: var(--employee-color);
+        }
+        
+        .action-btn.edit {
+            color: var(--warning-color);
+        }
+        
+        .action-btn.message {
+            color: var(--primary-color);
+        }
+        
+        .action-btn:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Quick Actions */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .action-card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        
+        .action-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .action-card i {
+            font-size: 2rem;
+            color: var(--employee-color);
+            margin-bottom: 15px;
+        }
+        
+        .action-card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+        
+        .action-card p {
+            color: #777;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 991px) {
+            .sidebar {
+                width: 70px;
+            }
+            
+            .sidebar-header h2, 
+            .sidebar-header .role-badge,
+            .sidebar-menu span, 
+            .user-details, 
+            .menu-category {
+                display: none;
+            }
+            
+            .sidebar-menu a {
+                justify-content: center;
+                padding: 15px;
+            }
+            
+            .sidebar-menu i {
+                margin-right: 0;
+                font-size: 1.3rem;
+            }
+            
+            .sidebar-footer {
+                padding: 10px;
+            }
+            
+            .user-avatar {
+                margin-right: 0;
+            }
+            
+            .main-content {
+                margin-left: 70px;
+            }
+            
+            .search-form {
+                flex-direction: column;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-stats {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .quick-actions {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .customers-table, .policies-table {
+                font-size: 0.85rem;
+            }
+            
+            .customers-table th:nth-child(3), 
+            .customers-table td:nth-child(3),
+            .policies-table th:nth-child(4), 
+            .policies-table td:nth-child(4) {
+                display: none;
+            }
+            
+            .content-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .header-actions {
+                margin-top: 15px;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .dashboard-stats,
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+            
+            .customers-table th:nth-child(2), 
+            .customers-table td:nth-child(2),
+            .policies-table th:nth-child(2), 
+            .policies-table td:nth-child(2) {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Apex Assurance</h2>
+                <div class="role-badge">Employee</div>
+            </div>
+            <div class="sidebar-menu">
+                <div class="menu-category">Customer Service</div>
+                <ul>
+                    <li>
+                        <a href="index.html" class="active">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Dashboard</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="customers.html">
+                            <i class="fas fa-users"></i>
+                            <span>Customers</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="policies.html">
+                            <i class="fas fa-file-contract"></i>
+                            <span>Policies</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="claims-support.html">
+                            <i class="fas fa-hands-helping"></i>
+                            <span>Claims Support</span>
+                        </a>
+                    </li>
+                </ul>
+                <div class="menu-category">Communications</div>
+                <ul>
+                    <li>
+                        <a href="messages.html">
+                            <i class="fas fa-comments"></i>
+                            <span>Messages</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="notifications.html">
+                            <i class="fas fa-bell"></i>
+                            <span>Notifications</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="emails.html">
+                            <i class="fas fa-envelope"></i>
+                            <span>Email Templates</span>
+                        </a>
+                    </li>
+                </ul>
+                <div class="menu-category">Tasks</div>
+                <ul>
+                    <li>
+                        <a href="tasks.html">
+                            <i class="fas fa-tasks"></i>
+                            <span>My Tasks</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="calendar.html">
+                            <i class="fas fa-calendar-alt"></i>
+                            <span>Calendar</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="reports.html">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Reports</span>
+                        </a>
+                    </li>
+                </ul>
+                <div class="menu-category">Account</div>
+                <ul>
+                    <li>
+                        <a href="profile.html">
+                            <i class="fas fa-user"></i>
+                            <span>My Profile</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="../login.html">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Logout</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">
+                        MK
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Mary Kamau</div>
+                        <div class="user-role">Customer Service</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="content-header">
+                <div class="content-title">
+                    <h1>Employee Dashboard</h1>
+                    <p>Welcome back, Mary! Here's your overview for today.</p>
+                </div>
+                <div class="header-actions">
+                    <a href="create-policy.html" class="btn btn-employee">
+                        <i class="fas fa-plus"></i> New Policy
+                    </a>
+                </div>
+            </div>
+
+            <!-- Search Section -->
+            <div class="search-container">
+                <form class="search-form">
+                    <div class="search-input">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search by customer name, policy number, or ID...">
+                    </div>
+                    <div class="search-filters">
+                        <select>
+                            <option value="">All Policy Types</option>
+                            <option value="comprehensive">Comprehensive</option>
+                            <option value="third-party">Third Party</option>
+                            <option value="theft-only">Theft Only</option>
+                        </select>
+                    </div>
+                    <div class="search-filters">
+                        <select>
+                            <option value="">All Statuses</option>
+                            <option value="active">Active</option>
+                            <option value="pending">Pending</option>
+                            <option value="expired">Expired</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-employee">Search</button>
+                </form>
+            </div>
+
+            <!-- Dashboard Stats -->
+            <div class="dashboard-stats">
+                <div class="stat-card">
+                    <div class="stat-icon green">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3>1,842</h3>
+                        <p>Total Customers</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon primary">
+                        <i class="fas fa-file-contract"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3>2,156</h3>
+                        <p>Active Policies</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon warning">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3>78</h3>
+                        <p>Expiring This Month</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon danger">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <div class="stat-details">
+                        <h3>24</h3>
+                        <p>Pending Tasks</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <div class="action-card">
+                    <i class="fas fa-user-plus"></i>
+                    <h3>New Customer</h3>
+                    <p>Register a new customer account in the system</p>
+                    <a href="add-customer.html" class="btn btn-employee">Add Customer</a>
+                </div>
+                <div class="action-card">
+                    <i class="fas fa-file-contract"></i>
+                    <h3>New Policy</h3>
+                    <p>Create a new insurance policy for a customer</p>
+                    <a href="create-policy.html" class="btn btn-employee">Create Policy</a>
+                </div>
+                <div class="action-card">
+                    <i class="fas fa-hands-helping"></i>
+                    <h3>Claims Support</h3>
+                    <p>Provide assistance for customer claims</p>
+                    <a href="claims-support.html" class="btn btn-employee">Support Claims</a>
+                </div>
+                <div class="action-card">
+                    <i class="fas fa-calendar-check"></i>
+                    <h3>Renewals</h3>
+                    <p>Process policy renewals for existing customers</p>
+                    <a href="renewals.html" class="btn btn-employee">Process Renewals</a>
+                </div>
+            </div>
+
+            <!-- Recent Customers -->
+            <div class="customers-section">
+                <div class="section-header">
+                    <h2>Recent Customers</h2>
+                    <a href="customers.html" class="view-all">View All Customers</a>
+                </div>
+                <table class="customers-table">
+                    <thead>
+                        <tr>
+                            <th>Customer ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Policies</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>CST-10432</td>
+                            <td>John Mwangi</td>
+                            <td>john.mwangi@example.com</td>
+                            <td>+254 723 456 789</td>
+                            <td>2</td>
+                            <td>
+                                <div class="actions">
+                                    <a href="view-customer.html?id=CST-10432" class="action-btn view"><i class="fas fa-eye"></i></a>
+                                    <a href="edit-customer.html?id=CST-10432" class="action-btn edit"><i class="fas fa-edit"></i></a>
+                                    <a href="message-customer.html?id=CST-10432" class="action-btn message"><i class="fas fa-comment"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>CST-10431</td>
+                            <td>Susan Kamau</td>
+                            <td>susan.kamau@example.com</td>
+                            <td>+254 712 345 678</td>
+                            <td>1</td>
+                            <td>
+                                <div class="actions">
+                                    <a href="view-customer.html?id=CST-10431" class="action-btn view"><i class="fas fa-eye"></i></a>
+                                    <a href="edit-customer.html?id=CST-10431" class="action-btn edit"><i class="fas fa-edit"></i></a>
+                                    <a href="message-customer.html?id=CST-10431" class="action-btn message"><i class="fas fa-comment"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>CST-10430</td>
+                            <td>Peter Ochieng</td>
+                            <td>peter.ochieng@example.com</td>
+                            <td>+254 734 567 890</td>
+                            <td>3</td>
+                            <td>
+                                <div class="actions">
+                                    <a href="view-customer.html?id=CST-10430" class="action-btn view"><i class="fas fa-eye"></i></a>
+                                    <a href="edit-customer.html?id=CST-10430" class="action-btn edit"><i class="fas fa-edit"></i></a>
+                                    <a href="message-customer.html?id=CST-10430" class="action-btn message"><i class="fas fa-comment"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>CST-10429</td>
+                            <td>Elizabeth Wangari</td>
+                            <td>elizabeth.wangari@example.com</td>
+                            <td>+254 745 678 901</td>
+                            <td>1</td>
+                            <td>
+                                <div class="actions">
+                                    <a href="view-customer.html?id=CST-10429" class="action-btn view"><i class="fas fa-eye"></i></a>
+                                    <a href="edit-customer.html?id=CST-10429" class="action-btn edit"><i class="fas fa-edit"></i></a>
+                                    <a href="message-customer.html?id=CST-10429" class="action-btn message"><i class="fas fa-comment"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Recent Policies -->
+            <div class="policies-section">
+                <div class="section-header">
+                    <h2>Recent Policies</h2>
+                    <a href="policies.html" class="view-all">View All Policies</a>
+                </div>
+                <table class="policies-table">
+                    <thead>
+                        <tr>
+                            <th>Policy Number</th>
+                            <th>Customer</th>
+                            <th>Vehicle</th>
+                            <th>Type</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>POL-54321</td>
+                            <td>John Mwangi</td>
+                            <td>Toyota Prado (KCR 123A)</td>
+                            <td>Comprehensive</td>
+                            <td>Jan 15, 2025</td>
+                            <td>Jan 14, 2026</td>
+                            <td><span class="status active">Active</span></td>
+                            <td>
+                                <div class="actions">
+                                    <a href="view-policy.html?id=POL-54321" class="action-btn view"><i class="fas fa-eye"></i></a>
+                                    <a href="edit-policy.html?id=POL-54321" class="action-btn edit"><i class="fas fa-edit"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POL-54320</td>
+                            <td>Susan Kamau</td>
+                            <td>Honda CRV (KDE 456B)</td>
+                            <td>Comprehensive</td>
+                            <td>Jan 12, 2025</td>
+                            <td>Jan 11, 2026</td>
+                            <td><span class="status active">Active</span></td>
+                            <td>
+                                <div class="actions">
+                                    <a href="view-policy.html?id=POL-54320" class="action-btn view"><i class="fas fa-eye"></i></a>
+                                    <a href="edit-policy.html?id=POL-54320" class="action-btn edit"><i class="fas fa-edit"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POL-54319</td>
+                            <td>Peter Ochieng</td>
+                            <td>Nissan X-Trail (KDK 789C)</td>
+                            <td>Third Party</td>
+                            <td>Jan 10, 2025</td>
+                            <td>Feb 15, 2025</td>
+                            <td><span class="status pending">Pending</span></td>
+                            <td>
+                                <div class="actions">
+                                    <a href="view-policy.html?id=POL-54319" class="action-btn view"><i class="fas fa-eye"></i></a>
+                                    <a href="edit-policy.html?id=POL-54319" class="action-btn edit"><i class="fas fa-edit"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>POL-54318</td>
+                            <td>Elizabeth Wangari</td>
+                            <td>Toyota Axio (KDF 012D)</td>
+                            <td>Comprehensive</td>
+                            <td>Dec 20, 2024</td>
+                            <td>Dec 19, 2025</td>
+                            <td><span class="status active">Active</span></td>
+                            <td>
+                                <div class="actions">
+                                    <a href="view-policy.html?id=POL-54318" class="action-btn view"><i class="fas fa-eye"></i></a>
+                                    <a href="edit-policy.html?id=POL-54318" class="action-btn edit"><i class="fas fa-edit"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

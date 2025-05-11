@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex Assurance - Motor Vehicle Accident Management System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        :root {
+            --primary-color: #0056b3;
+            --secondary-color: #00b359;
+            --dark-color: #333;
+            --light-color: #f4f4f4;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+        }
+        
+        body {
+            line-height: 1.6;
+            background-color: var(--light-color);
+            color: var(--dark-color);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        /* Header Styles */
+        header {
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 100;
+        }
+        
+        .logo img {
+            height: 50px;
+        }
+        
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+        }
+        
+        .nav-links {
+            display: flex;
+            list-style: none;
+        }
+        
+        .nav-links li {
+            margin-left: 25px;
+        }
+        
+        .nav-links a {
+            text-decoration: none;
+            color: var(--dark-color);
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: var(--primary-color);
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0045a2;
+            transform: translateY(-2px);
+        }
+        
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+            margin-left: 10px;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #009e4c;
+            transform: translateY(-2px);
+        }
+        
+        /* Hero Section */
+        .hero {
+            margin-top: 80px;
+            padding: 60px 0;
+            background: linear-gradient(to right, #0056b3, #00b359);
+            color: white;
+            text-align: center;
+        }
+        
+        .hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+        
+        .hero p {
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto 30px;
+        }
+        
+        /* Features Section */
+        .features {
+            padding: 60px 0;
+            background-color: white;
+        }
+        
+        .section-title {
+            text-align: center;
+            margin-bottom: 50px;
+            font-size: 2rem;
+            position: relative;
+        }
+        
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 4px;
+            background-color: var(--primary-color);
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        
+        .feature-card {
+            background-color: var(--light-color);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-10px);
+        }
+        
+        .feature-icon {
+            font-size: 3rem;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+        
+        .feature-card h3 {
+            margin-bottom: 15px;
+            font-size: 1.4rem;
+        }
+        
+        /* Benefits Section */
+        .benefits {
+            padding: 60px 0;
+            background-color: var(--light-color);
+        }
+        
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        
+        .benefit-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 30px;
+        }
+        
+        .benefit-icon {
+            font-size: 1.5rem;
+            color: var(--success-color);
+            margin-right: 15px;
+            background-color: rgba(40, 167, 69, 0.1);
+            padding: 10px;
+            border-radius: 50%;
+        }
+        
+        /* CTA Section */
+        .cta {
+            padding: 60px 0;
+            background: linear-gradient(to right, #0056b3, #00b359);
+            color: white;
+            text-align: center;
+        }
+        
+        .cta h2 {
+            font-size: 2rem;
+            margin-bottom: 30px;
+        }
+        
+        /* Footer */
+        footer {
+            background-color: var(--dark-color);
+            color: white;
+            padding: 40px 0 20px;
+        }
+        
+        .footer-columns {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .footer-column h3 {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .footer-column h3::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 50px;
+            height: 2px;
+            background-color: var (--secondary-color);
+        }
+        
+        .footer-column ul {
+            list-style: none;
+        }
+        
+        .footer-column li {
+            margin-bottom: 10px;
+        }
+        
+        .footer-column a {
+            color: #ddd;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        
+        .footer-column a:hover {
+            color: var(--secondary-color);
+        }
+        
+        .social-links {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .social-links a {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background-color 0.3s;
+        }
+        
+        .social-links a:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .footer-bottom {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+            
+            .hero h1 {
+                font-size: 2rem;
+            }
+            
+            .hero p {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header with Navigation -->
+    <header>
+        <div class="container">
+            <nav>
+                <div class="logo">
+                    <a href="index.html">
+                        <h2>APEX ASSURANCE</h2>
+                    </a>
+                </div>
+                <ul class="nav-links">
+                    <li><a href="#features">Features</a></li>
+                    <li><a href="#benefits">Benefits</a></li>
+                    <li><a href="#about">About Us</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+                <div>
+                    <a href="login.html" class="btn btn-primary">Login</a>
+                    <a href="register.html" class="btn btn-secondary">Register</a>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h1>Insurance Motor Vehicle Accident Management System</h1>
+            <p>
+                Streamlining the entire claims process from accident reporting to final settlement. Experience faster processing, 
+                real-time updates, and seamless communication between all stakeholders.
+            </p>
+            <a href="register.html" class="btn btn-secondary">Get Started</a>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title">Key Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-car-crash"></i>
+                    </div>
+                    <h3>Real-time Accident Reporting</h3>
+                    <p>Report accidents instantly with our mobile-friendly platform. Upload photos, videos, and location data for faster claim processing.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-tools"></i>
+                    </div>
+                    <h3>Automated Damage Assessment</h3>
+                    <p>Get accurate damage assessment and repair cost estimates based on submitted evidence and expert analysis.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-ambulance"></i>
+                    </div>
+                    <h3>Emergency Services Integration</h3>
+                    <p>Access towing, medical, and legal assistance directly through our platform for immediate support after an accident.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <h3>Claim Tracking Dashboard</h3>
+                    <p>Monitor the progress of your claim from submission to settlement with real-time status updates.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Comprehensive Analytics</h3>
+                    <p>Generate reports on claims trends, risk patterns, and operational performance for better decision-making.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <h3>Quick Settlement Processing</h3>
+                    <p>Experience faster claim settlements with automated verification and approval workflows.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Benefits Section -->
+    <section class="benefits" id="benefits">
+        <div class="container">
+            <h2 class="section-title">Why Choose Our System</h2>
+            <div class="benefits-grid">
+                <div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div>
+                            <h3>Improved Efficiency</h3>
+                            <p>Reduce claim processing time by up to 60% with our automated workflows.</p>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div>
+                            <h3>Reduced Operational Costs</h3>
+                            <p>Cut administrative expenses and resource allocation with digital processing.</p>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div>
+                            <h3>Enhanced Customer Experience</h3>
+                            <p>Improve satisfaction with transparent communication and 24/7 access.</p>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div>
+                            <h3>Fraud Prevention</h3>
+                            <p>Detect and prevent fraudulent claims with advanced verification tools.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Call to Action -->
+    <section class="cta">
+        <div class="container">
+            <h2>Ready to Streamline Your Claims Process?</h2>
+            <a href="register.html" class="btn btn-secondary">Get Started Today</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-columns">
+                <div class="footer-column">
+                    <h3>Apex Assurance</h3>
+                    <p>Leading provider of insurance services in Kenya, offering quality protection for personal and corporate clients.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-linkedin-in"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+                <div class="footer-column">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="#">Home</a></li>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#benefits">Benefits</a></li>
+                        <li><a href="#about">About Us</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>Contact Info</h3>
+                    <ul>
+                        <li><i class="fas fa-map-marker-alt"></i> Nairobi, Kenya</li>
+                        <li><i class="fas fa-phone"></i> +254 123 456 789</li>
+                        <li><i class="fas fa-envelope"></i> info@apexassurance.com</li>
+                    </ul>
+                </div>
+                <div class="footer-column">
+                    <h3>Support</h3>
+                    <ul>
+                        <li><a href="#">FAQ</a></li>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Apex Assurance. All Rights Reserved. Developed by Eunice Kamau BBIT/2022/49483</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
