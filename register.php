@@ -2,130 +2,85 @@
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
-$errors = [];
-$success = false;
+// Check if user is already logged in
+if (is_logged_in()) {
+    header("Location: users/index.php");
+    exit;
+}
 
-// Check if the form was submitted
+$error = '';
+$success = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Sanitize and validate input
+    // Sanitize inputs
     $first_name = sanitize_input($_POST['first_name']);
+    $second_name = sanitize_input($_POST['second_name']);
     $last_name = sanitize_input($_POST['last_name']);
+    $phone_number = sanitize_input($_POST['phone_number']);
     $email = sanitize_input($_POST['email']);
-    $phone = sanitize_input($_POST['phone']);
-    $id_number = sanitize_input($_POST['id_number']);
-    $user_type = sanitize_input($_POST['user_type']);
     $password = $_POST['password'];
     $confirm_password = $_POST['confirm_password'];
+    $gender = sanitize_input($_POST['gender']);
+    $national_id = sanitize_input($_POST['national_id']);
+    $user_type = 'Policyholder'; // Default to policyholder
     
     // Validation
-    if (empty($first_name)) {
-        $errors[] = "First name is required";
-    }
-    
-    if (empty($last_name)) {
-        $errors[] = "Last name is required";
-    }
-    
-    if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $errors[] = "Valid email is required";
+    if (empty($first_name) || empty($last_name) || empty($phone_number) || empty($email) || empty($password) || empty($national_id)) {
+        $error = "Please fill in all required fields.";
+    } elseif (!validate_email($email)) {
+        $error = "Please enter a valid email address.";
+    } elseif (!validate_phone($phone_number)) {
+        $error = "Please enter a valid Kenyan phone number.";
+    } elseif (!validate_national_id($national_id)) {
+        $error = "Please enter a valid national ID number.";
+    } elseif (strlen($password) < PASSWORD_MIN_LENGTH) {
+        $error = "Password must be at least " . PASSWORD_MIN_LENGTH . " characters long.";
+    } elseif ($password !== $confirm_password) {
+        $error = "Passwords do not match.";
     } else {
-        // Check if email already exists
-        $stmt = $conn->prepare("SELECT Id FROM user WHERE email = ?");
-        $stmt->bind_param("s", $email);
+        // Check if email or phone already exists
+        $stmt = $conn->prepare("SELECT Id FROM user WHERE email = ? OR phone_number = ? OR national_id = ?");
+        $stmt->bind_param("sss", $email, $phone_number, $national_id);
         $stmt->execute();
-        $stmt->store_result();
-        if ($stmt->num_rows > 0) {
-            $errors[] = "Email already in use";
-        }
-        $stmt->close();
-    }
-    
-    if (empty($phone)) {
-        $errors[] = "Phone number is required";
-    } else {
-        // Check if phone already exists
-        $stmt = $conn->prepare("SELECT Id FROM user WHERE phone_number = ?");
-        $stmt->bind_param("s", $phone);
-        $stmt->execute();
-        $stmt->store_result();
-        if ($stmt->num_rows > 0) {
-            $errors[] = "Phone number already in use";
-        }
-        $stmt->close();
-    }
-    
-    if (empty($id_number)) {
-        $errors[] = "National ID number is required";
-    } else {
-        // Check if ID already exists
-        $stmt = $conn->prepare("SELECT Id FROM user WHERE national_id = ?");
-        $stmt->bind_param("s", $id_number);
-        $stmt->execute();
-        $stmt->store_result();
-        if ($stmt->num_rows > 0) {
-            $errors[] = "National ID already in use";
-        }
-        $stmt->close();
-    }
-    
-    if (empty($user_type)) {
-        $errors[] = "Account type is required";
-    }
-    
-    if (empty($password)) {
-        $errors[] = "Password is required";
-    } elseif (strlen($password) < 8) {
-        $errors[] = "Password must be at least 8 characters";
-    }
-    
-    if ($password !== $confirm_password) {
-        $errors[] = "Passwords do not match";
-    }
-    
-    // If no errors, proceed with registration
-    if (empty($errors)) {
-        // Hash the password
-        $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+        $result = $stmt->get_result();
         
-        // Insert user into the database
-        $stmt = $conn->prepare("INSERT INTO user (first_name, last_name, phone_number, email, password, national_id, user_type) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssssss", $first_name, $last_name, $phone, $email, $hashed_password, $id_number, $user_type);
-        
-        if ($stmt->execute()) {
-            $user_id = $stmt->insert_id;
-            log_activity($user_id, "User Registration", "New user registered: $email");
-            $success = true;
-            
-            // Redirect based on user type after brief success message
-            $redirect_url = 'login.php?registered=1';
-            
-            if ($user_type == 'RepairCenter') {
-                // Create empty repair center record to be completed later
-                $repair_stmt = $conn->prepare("INSERT INTO repair_center (user_id, name, location, contact_person, contact_phone, email) VALUES (?, CONCAT(?, ' Auto Repair'), 'Please update', ?, ?, ?)");
-                $repair_stmt->bind_param("issss", $user_id, $first_name, $first_name, $phone, $email);
-                $repair_stmt->execute();
-            } elseif ($user_type == 'EmergencyService') {
-                // Create empty emergency service record to be completed later
-                $emergency_stmt = $conn->prepare("INSERT INTO emergency_service (user_id, service_type, name, location, contact_phone, email) VALUES (?, 'Towing', CONCAT(?, ' Services'), 'Please update', ?, ?)");
-                $emergency_stmt->bind_param("isss", $user_id, $first_name, $phone, $email);
-                $emergency_stmt->execute();
-            }
+        if ($result->num_rows > 0) {
+            $error = "Email, phone number, or national ID already registered.";
         } else {
-            $errors[] = "Registration failed: " . $stmt->error;
+            // Hash password and insert user
+            $hashed_password = hash_password($password);
+            
+            $stmt = $conn->prepare("INSERT INTO user (first_name, second_name, last_name, phone_number, email, password, gender, national_id, user_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->bind_param("sssssssss", $first_name, $second_name, $last_name, $phone_number, $email, $hashed_password, $gender, $national_id, $user_type);
+            
+            if ($stmt->execute()) {
+                $user_id = $stmt->insert_id;
+                
+                // Log the registration
+                log_activity($user_id, "User Registration", "New user registered: $email");
+                
+                // Create welcome notification
+                create_notification($user_id, $user_id, 'User', 'Welcome to Apex Assurance', 'Welcome! Your account has been successfully created.');
+                
+                $success = "Registration successful! You can now log in.";
+                
+                // Clear form data
+                $first_name = $second_name = $last_name = $phone_number = $email = $gender = $national_id = '';
+            } else {
+                $error = "Registration failed. Please try again.";
+            }
         }
-        
-        $stmt->close();
     }
 }
 ?>
 <!DOCTYPE html>
-<html lang="en"></html>
-<head></head>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Register - Apex Assurance</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style></style>
+    <style>
         * {
             margin: 0;
             padding: 0;
@@ -143,393 +98,276 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         body {
-            line-height: 1.6;
-            background-color: var(--light-color);
-            color: var(--dark-color);
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        /* Header Styles */
-        header {
-            background-color: #fff;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            width: 100%;
-        }
-        
-        nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 0;
-        }
-        
-        .logo a {
-            text-decoration: none;
-            color: var(--dark-color);
-        }
-        
-        .nav-links {
-            display: flex;
-            list-style: none;
-        }
-        
-        .nav-links li {
-            margin-left: 25px;
-        }
-        
-        .nav-links a {
-            text-decoration: none;
-            color: var(--dark-color);
-            font-weight: 500;
-            transition: color 0.3s;
-        }
-        
-        .nav-links a:hover {
-            color: var(--primary-color);
-        }
-        
-        /* Register Form */
-        .register-section {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 40px 0;
+            padding: 20px 0;
         }
         
         .register-container {
+            max-width: 600px;
+            margin: 0 auto;
             background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            padding: 40px;
-            width: 100%;
-            max-width: 700px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
         }
         
         .register-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 40px;
             text-align: center;
-            margin-bottom: 30px;
         }
         
-        .register-header h2 {
+        .register-header h1 {
             font-size: 2rem;
-            color: var(--primary-color);
+            margin-bottom: 10px;
         }
         
-        .register-form .form-row {
+        .register-header p {
+            opacity: 0.9;
+        }
+        
+        .register-form {
+            padding: 40px;
+        }
+        
+        .form-row {
             display: flex;
-            flex-wrap: wrap;
-            margin: 0 -10px;
-        }
-        
-        .register-form .form-col {
-            flex: 1 0 calc(50% - 20px);
-            margin: 0 10px 20px;
-        }
-        
-        .register-form .form-group {
+            gap: 20px;
             margin-bottom: 20px;
         }
         
-        .register-form label {
+        .form-group {
+            flex: 1;
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
             display: block;
             margin-bottom: 8px;
+            color: var(--dark-color);
             font-weight: 500;
         }
         
-        .register-form input,
-        .register-form select {
-            width: 100%;
-            padding: 12px 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 1rem;
-            transition: border-color 0.3s;
+        .input-group {
+            position: relative;
         }
         
-        .register-form input:focus,
-        .register-form select:focus {
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 12px 15px 12px 45px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .input-group input:focus,
+        .input-group select:focus {
             border-color: var(--primary-color);
             outline: none;
         }
         
-        .input-icon-wrapper {
-            position: relative;
-        }
-        
-        .input-icon {
+        .input-group i {
             position: absolute;
-            right: 15px;
+            left: 15px;
             top: 50%;
             transform: translateY(-50%);
-            color: #888;
+            color: #999;
         }
         
-        .terms-policy {
+        .btn-register {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
             margin-bottom: 20px;
         }
         
-        .terms-policy label {
-            display: flex;
-            align-items: flex-start;
-        }
-        
-        .terms-policy input[type="checkbox"] {
-            width: auto;
-            margin-right: 10px;
-            margin-top: 5px;
-        }
-        
-        .btn {
-            display: inline-block;
-            padding: 12px 20px;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 1rem;
-            text-align: center;
-            transition: background-color 0.3s, transform 0.3s;
-            width: 100%;
-        }
-        
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            background-color: #0045a2;
+        .btn-register:hover {
             transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 86, 179, 0.3);
         }
         
-        .register-footer {
+        .links {
             text-align: center;
-            margin-top: 30px;
-            font-size: 0.9rem;
         }
         
-        .register-footer a {
+        .links a {
             color: var(--primary-color);
             text-decoration: none;
             font-weight: 500;
         }
         
-        .register-footer a:hover {
+        .links a:hover {
             text-decoration: underline;
         }
         
-        /* Footer */
-        footer {
-            background-color: var(--dark-color);
-            color: white;
-            padding: 20px 0;
-            margin-top: auto;
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
         }
         
-        .footer-bottom {
-            text-align: center;
+        .alert-error {
+            background-color: rgba(220, 53, 69, 0.1);
+            border: 1px solid rgba(220, 53, 69, 0.2);
+            color: var(--danger-color);
+        }
+        
+        .alert-success {
+            background-color: rgba(40, 167, 69, 0.1);
+            border: 1px solid rgba(40, 167, 69, 0.2);
+            color: var(--success-color);
+        }
+        
+        .required {
+            color: var(--danger-color);
         }
         
         /* Responsive */
         @media (max-width: 768px) {
-            .nav-links {
-                display: none;
+            .form-row {
+                flex-direction: column;
+                gap: 0;
             }
             
-            .register-container {
+            .register-form {
                 padding: 30px 20px;
             }
             
-            .register-form .form-col {
-                flex: 1 0 100%;
+            .register-header {
+                padding: 30px 20px;
             }
-        }
-        .alert {
-            padding: 15px;
-            margin-bottom: 20px;
-            border: 1px solid transparent;
-            border-radius: 4px;
-        }
-        .alert-danger {
-            color: #721c24;
-            background-color: #f8d7da;
-            border-color: #f5c6cb;
-        }
-        .alert-success {
-            color: #155724;
-            background-color: #d4edda;
-            border-color: #c3e6cb;
         }
     </style>
 </head>
 <body>
-    <!-- Header with Navigation -->
-    <header>
-        <div class="container">
-            <nav>
-                <div class="logo">
-                    <a href="index.php">
-                        <h2>APEX ASSURANCE</h2>
-                    </a>
-                </div>
-                <ul class="nav-links">
-                    <li><a href="index.php">Home</a></li>
-                    <li><a href="about.php">About Us</a></li>
-                    <li><a href="contact.php">Contact</a></li>
-                </ul>
-            </nav>
+    <div class="register-container">
+        <div class="register-header">
+            <h1>Create Account</h1>
+            <p>Join Apex Assurance for comprehensive motor vehicle insurance</p>
         </div>
-    </header>
-
-    <!-- Register Section -->
-    <section class="register-section">
-        <div class="register-container">
-            <div class="register-header">
-                <h2>Create an Account</h2>
-                <p>Join Apex Assurance to manage your insurance needs</p>
-            </div>
-            
-            <?php if (!empty($errors)): ?>
-                <div class="alert alert-danger">
-                    <ul>
-                        <?php foreach ($errors as $error): ?>
-                            <li><?php echo $error; ?></li>
-                        <?php endforeach; ?>
-                    </ul>
+        
+        <div class="register-form">
+            <?php if (!empty($error)): ?>
+                <div class="alert alert-error">
+                    <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
                 </div>
             <?php endif; ?>
             
-            <?php if ($success): ?>
+            <?php if (!empty($success)): ?>
                 <div class="alert alert-success">
-                    <p>Registration successful! You can now <a href="login.php">login</a>.</p>
+                    <i class="fas fa-check-circle"></i> <?php echo $success; ?>
                 </div>
-                <script>
-                    // Redirect after 3 seconds
-                    setTimeout(function() {
-                        window.location.href = "login.php?registered=1";
-                    }, 3000);
-                </script>
-            <?php else: ?>
-                <form class="register-form" action="register.php" method="POST">
-                    <div class="form-row">
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="first_name">First Name</label>
-                                <input type="text" id="first_name" name="first_name" placeholder="Enter your first name" value="<?php echo isset($_POST['first_name']) ? htmlspecialchars($_POST['first_name']) : ''; ?>" required>
-                            </div>
-                        </div>
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="last_name">Last Name</label>
-                                <input type="text" id="last_name" name="last_name" placeholder="Enter your last name" value="<?php echo isset($_POST['last_name']) ? htmlspecialchars($_POST['last_name']) : ''; ?>" required>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="email">Email Address</label>
-                                <div class="input-icon-wrapper">
-                                    <input type="email" id="email" name="email" placeholder="Enter your email" value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>" required>
-                                    <span class="input-icon">
-                                        <i class="fas fa-envelope"></i>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="phone">Phone Number</label>
-                                <div class="input-icon-wrapper">
-                                    <input type="tel" id="phone" name="phone" placeholder="Enter your phone number" value="<?php echo isset($_POST['phone']) ? htmlspecialchars($_POST['phone']) : ''; ?>" required>
-                                    <span class="input-icon">
-                                        <i class="fas fa-phone"></i>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="id_number">National ID Number</label>
-                                <input type="text" id="id_number" name="id_number" placeholder="Enter your ID number" value="<?php echo isset($_POST['id_number']) ? htmlspecialchars($_POST['id_number']) : ''; ?>" required>
-                            </div>
-                        </div>
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="user_type">Account Type</label>
-                                <select id="user_type" name="user_type" required>
-                                    <option value="">Select account type</option>
-                                    <option value="Policyholder" <?php echo (isset($_POST['user_type']) && $_POST['user_type'] == 'Policyholder') ? 'selected' : ''; ?>>Policyholder</option>
-                                    <option value="RepairCenter" <?php echo (isset($_POST['user_type']) && $_POST['user_type'] == 'RepairCenter') ? 'selected' : ''; ?>>Repair Center</option>
-                                    <option value="EmergencyService" <?php echo (isset($_POST['user_type']) && $_POST['user_type'] == 'EmergencyService') ? 'selected' : ''; ?>>Emergency Service</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="password">Password</label>
-                                <div class="input-icon-wrapper">
-                                    <input type="password" id="password" name="password" placeholder="Create a password" required>
-                                    <span class="input-icon">
-                                        <i class="fas fa-lock"></i>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-col">
-                            <div class="form-group">
-                                <label for="confirm_password">Confirm Password</label>
-                                <div class="input-icon-wrapper">
-                                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm your password" required>
-                                    <span class="input-icon">
-                                        <i class="fas fa-lock"></i>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="terms-policy">
-                        <label for="terms">
-                            <input type="checkbox" id="terms" name="terms" required>
-                            I agree to Apex Assurance's <a href="#">Terms & Conditions</a> and <a href="#">Privacy Policy</a>
-                        </label>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary">Create Account</button>
-                </form>
             <?php endif; ?>
             
-            <div class="register-footer">
-                <p>Already have an account? <a href="login.php">Sign in</a></p>
+            <form method="POST">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="first_name">First Name <span class="required">*</span></label>
+                        <div class="input-group">
+                            <i class="fas fa-user"></i>
+                            <input type="text" id="first_name" name="first_name" placeholder="First Name" 
+                                   value="<?php echo isset($first_name) ? htmlspecialchars($first_name) : ''; ?>" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="second_name">Second Name</label>
+                        <div class="input-group">
+                            <i class="fas fa-user"></i>
+                            <input type="text" id="second_name" name="second_name" placeholder="Second Name" 
+                                   value="<?php echo isset($second_name) ? htmlspecialchars($second_name) : ''; ?>">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="last_name">Last Name <span class="required">*</span></label>
+                    <div class="input-group">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="last_name" name="last_name" placeholder="Last Name" 
+                               value="<?php echo isset($last_name) ? htmlspecialchars($last_name) : ''; ?>" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="phone_number">Phone Number <span class="required">*</span></label>
+                        <div class="input-group">
+                            <i class="fas fa-phone"></i>
+                            <input type="tel" id="phone_number" name="phone_number" placeholder="e.g., 0700123456" 
+                                   value="<?php echo isset($phone_number) ? htmlspecialchars($phone_number) : ''; ?>" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="gender">Gender</label>
+                        <div class="input-group">
+                            <i class="fas fa-venus-mars"></i>
+                            <select id="gender" name="gender">
+                                <option value="">Select Gender</option>
+                                <option value="Male" <?php echo (isset($gender) && $gender === 'Male') ? 'selected' : ''; ?>>Male</option>
+                                <option value="Female" <?php echo (isset($gender) && $gender === 'Female') ? 'selected' : ''; ?>>Female</option>
+                                <option value="Other" <?php echo (isset($gender) && $gender === 'Other') ? 'selected' : ''; ?>>Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">Email Address <span class="required">*</span></label>
+                    <div class="input-group">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" id="email" name="email" placeholder="your.email@example.com" 
+                               value="<?php echo isset($email) ? htmlspecialchars($email) : ''; ?>" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="national_id">National ID Number <span class="required">*</span></label>
+                    <div class="input-group">
+                        <i class="fas fa-id-card"></i>
+                        <input type="text" id="national_id" name="national_id" placeholder="12345678" 
+                               value="<?php echo isset($national_id) ? htmlspecialchars($national_id) : ''; ?>" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="password">Password <span class="required">*</span></label>
+                        <div class="input-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="password" name="password" placeholder="Minimum 8 characters" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm_password">Confirm Password <span class="required">*</span></label>
+                        <div class="input-group">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm password" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-register">
+                    <i class="fas fa-user-plus"></i> Create Account
+                </button>
+            </form>
+            
+            <div class="links">
+                <p>Already have an account? <a href="login.php">Sign In</a></p>
+                <p><a href="index.php">Back to Home</a></p>
             </div>
         </div>
-    </section>
-
-    <!-- Footer -->
-    <footer>
-        <div class="container">
-            <div class="footer-bottom">
-                <p>&copy; 2025 Apex Assurance. All Rights Reserved. Developed by Eunice Kamau BBIT/2022/49483</p>
-            </div>
-        </div>
-    </footer>
+    </div>
 </body>
 </html>
