@@ -2,63 +2,40 @@
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
-$success = false;
-$error = "";
+$success_message = '';
+$error_message = '';
 
-// Process form submission
+// Handle contact form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Sanitize inputs
     $name = sanitize_input($_POST['name']);
     $email = sanitize_input($_POST['email']);
     $phone = sanitize_input($_POST['phone']);
     $subject = sanitize_input($_POST['subject']);
     $message = sanitize_input($_POST['message']);
     
-    // Basic validation
-    if (empty($name) || empty($email) || empty($subject) || empty($message)) {
-        $error = "Please fill all required fields.";
-    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $error = "Please provide a valid email address.";
-    } else {
-        // Insert into database (creating a temporary table for this example)
-        try {
-            // Create table if it doesn't exist
-            $sql = "CREATE TABLE IF NOT EXISTS contact_messages (
-                Id INT(11) AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(100) NOT NULL,
-                email VARCHAR(100) NOT NULL,
-                phone VARCHAR(20),
-                subject VARCHAR(100) NOT NULL,
-                message TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )";
-            $conn->query($sql);
-            
-            // Insert the message
-            $stmt = $conn->prepare("INSERT INTO contact_messages (name, email, phone, subject, message) VALUES (?, ?, ?, ?, ?)");
+    if ($name && $email && $subject && $message) {
+        if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            // Insert contact inquiry into database
+            $stmt = $conn->prepare("INSERT INTO contact_inquiries (name, email, phone, subject, message, created_at) VALUES (?, ?, ?, ?, ?, NOW())");
             $stmt->bind_param("sssss", $name, $email, $phone, $subject, $message);
             
             if ($stmt->execute()) {
-                $success = true;
-                
-                // Log the activity if user is logged in
-                if (is_logged_in()) {
-                    log_activity($_SESSION['user_id'], "Contact Form", "User submitted contact form: $subject");
-                }
+                $success_message = "Thank you for your message! We'll get back to you within 24 hours.";
                 
                 // Clear form data
-                $name = $email = $phone = $subject = $message = "";
+                $_POST = array();
             } else {
-                $error = "Failed to submit your message. Please try again.";
+                $error_message = "Sorry, there was an error sending your message. Please try again.";
             }
-            
-            $stmt->close();
-        } catch (Exception $e) {
-            $error = "An error occurred: " . $e->getMessage();
+        } else {
+            $error_message = "Please enter a valid email address.";
         }
+    } else {
+        $error_message = "Please fill in all required fields.";
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -76,76 +53,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         :root {
             --primary-color: #0056b3;
-            --secondary-color: #00b359;
-            --dark-color: #333;
-            --light-color: #f4f4f4;
-            --danger-color: #dc3545;
-            --success-color: #28a745;
+            --secondary-color: #f8f9fa;
+            --accent-color: #28a745;
+            --text-dark: #333;
+            --text-light: #666;
         }
         
         body {
             line-height: 1.6;
-            background-color: var(--light-color);
-            color: var(--dark-color);
+            color: var(--text-dark);
+            background-color: var(--secondary-color);
         }
         
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        /* Header Styles */
-        header {
-            background-color: #fff;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        /* Navigation */
+        .navbar {
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
             position: fixed;
             top: 0;
             width: 100%;
-            z-index: 100;
+            z-index: 1000;
+            padding: 1rem 0;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
         }
         
-        nav {
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px 0;
+            padding: 0 20px;
         }
         
-        .logo a {
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary-color);
             text-decoration: none;
-            color: var(--dark-color);
         }
         
         .nav-links {
             display: flex;
             list-style: none;
-        }
-        
-        .nav-links li {
-            margin-left: 25px;
+            gap: 30px;
         }
         
         .nav-links a {
             text-decoration: none;
-            color: var(--dark-color);
+            color: var(--text-dark);
             font-weight: 500;
             transition: color 0.3s;
+            position: relative;
         }
         
         .nav-links a:hover {
             color: var(--primary-color);
         }
         
+        .nav-links a.active {
+            color: var(--primary-color);
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 15px;
+        }
+        
         .btn {
-            display: inline-block;
             padding: 10px 20px;
-            cursor: pointer;
             border: none;
-            border-radius: 5px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 500;
             text-decoration: none;
-            font-weight: bold;
-            transition: background-color 0.3s, transform 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+        
+        .btn-outline:hover {
+            background-color: var(--primary-color);
+            color: white;
         }
         
         .btn-primary {
@@ -154,409 +151,636 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         .btn-primary:hover {
-            background-color: #0045a2;
+            background-color: #004494;
             transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 86, 179, 0.3);
         }
         
-        .btn-secondary {
-            background-color: var(--secondary-color);
+        /* Page Header */
+        .page-header {
+            background: linear-gradient(135deg, var(--primary-color), #004494);
             color: white;
-            margin-left: 10px;
-        }
-        
-        .btn-secondary:hover {
-            background-color: #009e4c;
-            transform: translateY(-2px);
-        }
-        
-        /* Main Content */
-        main {
-            margin-top: 80px;
-            padding: 50px 0;
-        }
-        
-        /* Contact Hero */
-        .contact-hero {
-            background: linear-gradient(to right, rgba(0, 86, 179, 0.9), rgba(0, 179, 89, 0.9)), 
-                        url('https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80') no-repeat center center/cover;
-            color: white;
+            padding: 120px 0 60px;
             text-align: center;
-            padding: 80px 0;
-            margin-bottom: 50px;
         }
         
-        .contact-hero h1 {
-            font-size: 2.5rem;
-            margin-bottom: 20px;
+        .page-header h1 {
+            font-size: 3rem;
+            margin-bottom: 15px;
         }
         
-        .contact-hero p {
+        .page-header p {
             font-size: 1.2rem;
-            max-width: 800px;
+            opacity: 0.9;
+            max-width: 600px;
             margin: 0 auto;
         }
         
-        /* Contact Section */
-        .contact-section {
+        /* Main Content */
+        .main-content {
+            max-width: 1200px;
+            margin: -40px auto 0;
+            padding: 0 20px 80px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .contact-container {
             display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 50px;
-            margin-bottom: 50px;
-        }
-        
-        .contact-info {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            padding: 30px;
-        }
-        
-        .contact-info h2 {
-            font-size: 1.8rem;
-            color: var(--primary-color);
-            margin-bottom: 20px;
-        }
-        
-        .contact-item {
-            display: flex;
-            margin-bottom: 20px;
-        }
-        
-        .contact-icon {
-            width: 50px;
-            height: 50px;
-            background-color: rgba(0, 86, 179, 0.1);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--primary-color);
-            font-size: 1.2rem;
-            margin-right: 15px;
-        }
-        
-        .contact-text h3 {
-            font-size: 1.1rem;
-            margin-bottom: 5px;
-        }
-        
-        .contact-text p {
-            color: #777;
-            font-size: 0.9rem;
-        }
-        
-        .social-icons {
-            display: flex;
-            gap: 15px;
-            margin-top: 30px;
-        }
-        
-        .social-icons a {
-            width: 40px;
-            height: 40px;
-            background-color: rgba(0, 86, 179, 0.1);
-            color: var(--primary-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-        }
-        
-        .social-icons a:hover {
-            background-color: var(--primary-color);
-            color: white;
-            transform: translateY(-3px);
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
         }
         
         /* Contact Form */
-        .contact-form-container {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
-            padding: 30px;
-        }
-        
-        .contact-form-container h2 {
-            font-size: 1.8rem;
-            color: var(--primary-color);
-            margin-bottom: 20px;
-        }
-        
         .contact-form {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            padding: 50px;
+        }
+        
+        .form-header {
+            margin-bottom: 40px;
+        }
+        
+        .form-header h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        
+        .form-header p {
+            color: var(--text-light);
+            font-size: 1.1rem;
         }
         
         .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-group.full-width {
-            grid-column: 1 / 3;
+            margin-bottom: 25px;
         }
         
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            font-weight: 500;
+            font-weight: 600;
+            color: var(--text-dark);
         }
         
         .form-group input,
-        .form-group textarea,
-        .form-group select {
+        .form-group select,
+        .form-group textarea {
             width: 100%;
-            padding: 12px 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 15px;
+            border: 2px solid #e1e1e1;
+            border-radius: 10px;
             font-size: 1rem;
             transition: border-color 0.3s;
+            font-family: inherit;
         }
         
         .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            border-color: var(--primary-color);
+        .form-group select:focus,
+        .form-group textarea:focus {
             outline: none;
+            border-color: var(--primary-color);
         }
         
         .form-group textarea {
-            min-height: 150px;
+            min-height: 120px;
             resize: vertical;
         }
         
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .required {
+            color: #dc3545;
+        }
+        
         .submit-btn {
-            padding: 12px 25px;
-            background-color: var(--primary-color);
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--primary-color), #004494);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
             cursor: pointer;
-            font-size: 1rem;
-            font-weight: bold;
             transition: all 0.3s;
-            width: 100%;
         }
         
         .submit-btn:hover {
-            background-color: #0045a2;
             transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 86, 179, 0.3);
         }
         
-        /* Map Section */
-        .map-section {
-            margin-bottom: 50px;
+        /* Contact Info */
+        .contact-info {
+            background: linear-gradient(135deg, var(--primary-color), #004494);
+            color: white;
+            padding: 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
         
-        .map-container {
-            height: 400px;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        .info-header {
+            margin-bottom: 40px;
         }
         
-        /* Alert Messages */
-        .alert {
+        .info-header h2 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+        }
+        
+        .info-header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+            line-height: 1.6;
+        }
+        
+        .contact-details {
+            margin-bottom: 40px;
+        }
+        
+        .contact-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
             padding: 15px;
-            margin-bottom: 20px;
-            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .contact-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 20px;
+            font-size: 1.2rem;
+        }
+        
+        .contact-text h3 {
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+        
+        .contact-text p {
+            opacity: 0.9;
+        }
+        
+        .office-hours {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 25px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .office-hours h3 {
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .hours-list {
+            list-style: none;
+        }
+        
+        .hours-list li {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            opacity: 0.9;
+        }
+        
+        /* Alerts */
+        .alert {
+            padding: 15px 20px;
+            margin-bottom: 30px;
+            border-radius: 10px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         
         .alert-success {
             background-color: rgba(40, 167, 69, 0.1);
             border: 1px solid rgba(40, 167, 69, 0.2);
-            color: var(--success-color);
+            color: var(--accent-color);
         }
         
-        .alert-error {
+        .alert-danger {
             background-color: rgba(220, 53, 69, 0.1);
             border: 1px solid rgba(220, 53, 69, 0.2);
-            color: var(--danger-color);
+            color: #dc3545;
+        }
+        
+        /* FAQ Section */
+        .faq-section {
+            background: white;
+            margin: 60px auto 0;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 50px;
+        }
+        
+        .faq-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .faq-header h2 {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+        
+        .faq-header p {
+            color: var(--text-light);
+            font-size: 1.1rem;
+        }
+        
+        .faq-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .faq-item {
+            background: var(--secondary-color);
+            padding: 25px;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        
+        .faq-item:hover {
+            box-shadow: 0 5px 15px rgba(0, 86, 179, 0.1);
+        }
+        
+        .faq-question {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        
+        .faq-answer {
+            color: var(--text-light);
+            line-height: 1.6;
         }
         
         /* Footer */
-        footer {
-            background-color: var(--dark-color);
+        .footer {
+            background-color: #1a1a1a;
             color: white;
-            padding: 20px 0;
+            padding: 60px 0 30px;
+            margin-top: 80px;
+        }
+        
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 40px;
+        }
+        
+        .footer-section h3 {
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+        
+        .footer-section p,
+        .footer-section a {
+            color: #ccc;
+            text-decoration: none;
+            line-height: 1.8;
+        }
+        
+        .footer-section a:hover {
+            color: white;
+        }
+        
+        .footer-bottom {
             text-align: center;
+            padding-top: 30px;
+            margin-top: 30px;
+            border-top: 1px solid #333;
+            color: #999;
         }
         
         /* Responsive */
-        @media (max-width: 991px) {
-            .contact-section {
-                grid-template-columns: 1fr;
-            }
-            
-            .contact-form {
-                grid-template-columns: 1fr;
-            }
-            
-            .form-group.full-width {
-                grid-column: 1;
-            }
-        }
-        
         @media (max-width: 768px) {
             .nav-links {
                 display: none;
             }
             
-            .contact-hero {
-                padding: 60px 0;
-            }
-            
-            .contact-hero h1 {
+            .page-header h1 {
                 font-size: 2rem;
             }
             
-            .contact-hero p {
-                font-size: 1rem;
+            .contact-container {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+            
+            .contact-form,
+            .contact-info {
+                padding: 30px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .faq-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-buttons {
+                flex-direction: column;
+                gap: 10px;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Header with Navigation -->
-    <header>
-        <div class="container">
-            <nav>
-                <div class="logo">
-                    <a href="index.php">
-                        <h2>APEX ASSURANCE</h2>
-                    </a>
-                </div>
-                <ul class="nav-links">
-                    <li><a href="index.php">Home</a></li>
-                    <li><a href="about.php">About Us</a></li>
-                    <li><a href="contact.php">Contact</a></li>
-                </ul>
-                <div>
-                    <a href="login.php" class="btn btn-primary">Login</a>
-                    <a href="register.php" class="btn btn-secondary">Register</a>
-                </div>
-            </nav>
-        </div>
-    </header>
-
-    <main>
-        <!-- Contact Hero Section -->
-        <section class="contact-hero">
-            <div class="container">
-                <h1>Contact Us</h1>
-                <p>Have questions about our insurance services? We're here to help! Reach out to our team for personalized assistance.</p>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.php" class="logo">Apex Assurance</a>
+            <ul class="nav-links">
+                <li><a href="index.php">Home</a></li>
+                <li><a href="about.php">About</a></li>
+                <li><a href="contact.php" class="active">Contact</a></li>
+            </ul>
+            <div class="nav-buttons">
+                <a href="login.php" class="btn btn-outline">Login</a>
+                <a href="register.php" class="btn btn-primary">Get Started</a>
             </div>
-        </section>
+        </div>
+    </nav>
 
-        <!-- Contact Section -->
-        <section class="container">
-            <div class="contact-section">
-                <div class="contact-info">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>Contact Us</h1>
+        <p>Get in touch with our expert team for personalized insurance solutions and exceptional customer service</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <?php if (!empty($success_message)): ?>
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                <?php echo $success_message; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($error_message)): ?>
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i>
+                <?php echo $error_message; ?>
+            </div>
+        <?php endif; ?>
+
+        <div class="contact-container">
+            <!-- Contact Form -->
+            <div class="contact-form">
+                <div class="form-header">
+                    <h2>Send us a Message</h2>
+                    <p>Have questions about our insurance services? We're here to help you find the perfect coverage.</p>
+                </div>
+
+                <form method="POST" action="">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="name">Full Name <span class="required">*</span></label>
+                            <input type="text" id="name" name="name" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email Address <span class="required">*</span></label>
+                            <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="phone">Phone Number</label>
+                            <input type="tel" id="phone" name="phone" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
+                        </div>
+                        <div class="form-group">
+                            <label for="subject">Subject <span class="required">*</span></label>
+                            <select id="subject" name="subject" required>
+                                <option value="">Select a subject</option>
+                                <option value="General Inquiry" <?php echo ($_POST['subject'] ?? '') === 'General Inquiry' ? 'selected' : ''; ?>>General Inquiry</option>
+                                <option value="Policy Quote" <?php echo ($_POST['subject'] ?? '') === 'Policy Quote' ? 'selected' : ''; ?>>Policy Quote</option>
+                                <option value="Claim Support" <?php echo ($_POST['subject'] ?? '') === 'Claim Support' ? 'selected' : ''; ?>>Claim Support</option>
+                                <option value="Technical Support" <?php echo ($_POST['subject'] ?? '') === 'Technical Support' ? 'selected' : ''; ?>>Technical Support</option>
+                                <option value="Billing Question" <?php echo ($_POST['subject'] ?? '') === 'Billing Question' ? 'selected' : ''; ?>>Billing Question</option>
+                                <option value="Partnership" <?php echo ($_POST['subject'] ?? '') === 'Partnership' ? 'selected' : ''; ?>>Partnership Opportunity</option>
+                                <option value="Other" <?php echo ($_POST['subject'] ?? '') === 'Other' ? 'selected' : ''; ?>>Other</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="message">Message <span class="required">*</span></label>
+                        <textarea id="message" name="message" placeholder="Tell us how we can help you..." required><?php echo htmlspecialchars($_POST['message'] ?? ''); ?></textarea>
+                    </div>
+
+                    <button type="submit" class="submit-btn">
+                        <i class="fas fa-paper-plane"></i>
+                        Send Message
+                    </button>
+                </form>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="contact-info">
+                <div class="info-header">
                     <h2>Get in Touch</h2>
+                    <p>Our dedicated team is ready to assist you with all your insurance needs. Contact us through any of the following channels.</p>
+                </div>
+
+                <div class="contact-details">
                     <div class="contact-item">
                         <div class="contact-icon">
                             <i class="fas fa-map-marker-alt"></i>
                         </div>
                         <div class="contact-text">
-                            <h3>Our Location</h3>
-                            <p>123 Kimathi Street, Nairobi, Kenya</p>
+                            <h3>Our Office</h3>
+                            <p>123 Insurance Avenue<br>Business District, City 12345</p>
                         </div>
                     </div>
+
                     <div class="contact-item">
                         <div class="contact-icon">
-                            <i class="fas fa-phone-alt"></i>
+                            <i class="fas fa-phone"></i>
                         </div>
                         <div class="contact-text">
-                            <h3>Phone Number</h3>
-                            <p>+254 700 123 456</p>
-                            <p>+254 733 987 654</p>
+                            <h3>Phone Support</h3>
+                            <p>+1 (555) 123-4567<br>24/7 Emergency Claims</p>
                         </div>
                     </div>
+
                     <div class="contact-item">
                         <div class="contact-icon">
                             <i class="fas fa-envelope"></i>
                         </div>
                         <div class="contact-text">
-                            <h3>Email Address</h3>
-                            <p>info@apexassurance.com</p>
-                            <p>support@apexassurance.com</p>
+                            <h3>Email Support</h3>
+                            <p>support@apexassurance.com<br>claims@apexassurance.com</p>
                         </div>
                     </div>
+
                     <div class="contact-item">
                         <div class="contact-icon">
-                            <i class="fas fa-clock"></i>
+                            <i class="fas fa-comments"></i>
                         </div>
                         <div class="contact-text">
-                            <h3>Working Hours</h3>
-                            <p>Monday - Friday: 8:00 AM - 6:00 PM</p>
-                            <p>Saturday: 9:00 AM - 1:00 PM</p>
+                            <h3>Live Chat</h3>
+                            <p>Available on our website<br>Mon-Fri, 8 AM - 8 PM</p>
                         </div>
                     </div>
-                    <div class="social-icons">
-                        <a href="#"><i class="fab fa-facebook-f"></i></a>
-                        <a href="#"><i class="fab fa-twitter"></i></a>
-                        <a href="#"><i class="fab fa-instagram"></i></a>
-                        <a href="#"><i class="fab fa-linkedin-in"></i></a>
-                    </div>
                 </div>
-                <div class="contact-form-container">
-                    <h2>Send Us a Message</h2>
-                    
-                    <?php if ($success): ?>
-                        <div class="alert alert-success">
-                            <p>Your message has been sent successfully! We'll get back to you as soon as possible.</p>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <?php if (!empty($error)): ?>
-                        <div class="alert alert-error">
-                            <p><?php echo $error; ?></p>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <form class="contact-form" action="contact.php" method="POST">
-                        <div class="form-group">
-                            <label for="name">Full Name *</label>
-                            <input type="text" id="name" name="name" value="<?php echo isset($name) ? htmlspecialchars($name) : ''; ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="email">Email Address *</label>
-                            <input type="email" id="email" name="email" value="<?php echo isset($email) ? htmlspecialchars($email) : ''; ?>" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="phone">Phone Number</label>
-                            <input type="tel" id="phone" name="phone" value="<?php echo isset($phone) ? htmlspecialchars($phone) : ''; ?>">
-                        </div>
-                        <div class="form-group">
-                            <label for="subject">Subject *</label>
-                            <input type="text" id="subject" name="subject" value="<?php echo isset($subject) ? htmlspecialchars($subject) : ''; ?>" required>
-                        </div>
-                        <div class="form-group full-width">
-                            <label for="message">Message *</label>
-                            <textarea id="message" name="message" required><?php echo isset($message) ? htmlspecialchars($message) : ''; ?></textarea>
-                        </div>
-                        <div class="form-group full-width">
-                            <button type="submit" class="submit-btn">Send Message</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </section>
 
-        <!-- Map Section -->
-        <section class="container map-section">
-            <div class="map-container">
-                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3988.8177795322186!2d36.81712091475772!3d-1.2833569359804308!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x182f10d8eeeaade9%3A0xb1e3c7c249a78657!2sKimathi%20St%2C%20Nairobi!5e0!3m2!1sen!2ske!4v1656000000000!5m2!1sen!2ske" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                <div class="office-hours">
+                    <h3>Office Hours</h3>
+                    <ul class="hours-list">
+                        <li><span>Monday - Friday</span><span>8:00 AM - 6:00 PM</span></li>
+                        <li><span>Saturday</span><span>9:00 AM - 4:00 PM</span></li>
+                        <li><span>Sunday</span><span>10:00 AM - 2:00 PM</span></li>
+                        <li><span>Emergency Claims</span><span>24/7 Available</span></li>
+                    </ul>
+                </div>
             </div>
-        </section>
-    </main>
+        </div>
+
+        <!-- FAQ Section -->
+        <div class="faq-section">
+            <div class="faq-header">
+                <h2>Frequently Asked Questions</h2>
+                <p>Quick answers to common questions about our services</p>
+            </div>
+
+            <div class="faq-grid">
+                <div class="faq-item">
+                    <div class="faq-question">How quickly can I get a quote?</div>
+                    <div class="faq-answer">You can get an instant quote online in just 2-3 minutes. Simply fill out our quick form with your vehicle and personal information.</div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">What types of insurance do you offer?</div>
+                    <div class="faq-answer">We offer comprehensive auto insurance, including liability, collision, comprehensive, and additional coverage options to protect you and your vehicle.</div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">How do I file a claim?</div>
+                    <div class="faq-answer">You can file a claim 24/7 through our online portal, mobile app, or by calling our claims hotline. Our team will guide you through the entire process.</div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">Can I manage my policy online?</div>
+                    <div class="faq-answer">Yes! Our customer portal allows you to view policies, make payments, update information, file claims, and track claim status anytime, anywhere.</div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">Do you offer discounts?</div>
+                    <div class="faq-answer">Yes, we offer various discounts including safe driver, multi-vehicle, good student, and bundling discounts. Contact us to see which discounts you qualify for.</div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">What payment methods do you accept?</div>
+                    <div class="faq-answer">We accept all major credit cards, debit cards, bank transfers, and automatic monthly payments for your convenience.</div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
-    <footer>
-        <div class="container">
-            <p>&copy; 2025 Apex Assurance. All Rights Reserved. Developed by Eunice Kamau BBIT/2022/49483</p>
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>Apex Assurance</h3>
+                <p>Your trusted partner for comprehensive auto insurance solutions. Protecting what matters most to you and your family.</p>
+            </div>
+            <div class="footer-section">
+                <h3>Quick Links</h3>
+                <p><a href="index.php">Home</a></p>
+                <p><a href="about.php">About Us</a></p>
+                <p><a href="contact.php">Contact</a></p>
+                <p><a href="login.php">Customer Login</a></p>
+            </div>
+            <div class="footer-section">
+                <h3>Services</h3>
+                <p><a href="#">Auto Insurance</a></p>
+                <p><a href="#">Claims Processing</a></p>
+                <p><a href="#">24/7 Support</a></p>
+                <p><a href="#">Mobile App</a></p>
+            </div>
+            <div class="footer-section">
+                <h3>Contact Info</h3>
+                <p><i class="fas fa-phone"></i> +1 (555) 123-4567</p>
+                <p><i class="fas fa-envelope"></i> support@apexassurance.com</p>
+                <p><i class="fas fa-map-marker-alt"></i> 123 Insurance Ave, City 12345</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 Apex Assurance. All rights reserved. | Privacy Policy | Terms of Service</p>
         </div>
     </footer>
+
+    <script>
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelector(this.getAttribute('href')).scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        });
+
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const requiredFields = this.querySelectorAll('[required]');
+            let isValid = true;
+
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    isValid = false;
+                    field.style.borderColor = '#dc3545';
+                } else {
+                    field.style.borderColor = '#e1e1e1';
+                }
+            });
+
+            if (!isValid) {
+                e.preventDefault();
+                alert('Please fill in all required fields.');
+            }
+        });
+
+        // Auto-hide success messages
+        const successAlert = document.querySelector('.alert-success');
+        if (successAlert) {
+            setTimeout(() => {
+                successAlert.style.opacity = '0';
+                setTimeout(() => {
+                    successAlert.style.display = 'none';
+                }, 300);
+            }, 5000);
+        }
+    </script>
 </body>
 </html>
