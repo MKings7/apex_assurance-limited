@@ -5,61 +5,8 @@ require_once 'includes/functions.php';
 // Ensure the user is logged in
 require_login();
 
-// Only for policyholders
-if (!check_role('Policyholder')) {
-    // Redirect to appropriate dashboard based on user role
-    switch ($_SESSION['user_type']) {
-        case 'Admin':
-            header("Location: admin/index.php");
-            break;
-        case 'Adjuster':
-            header("Location: insurance/index.php");
-            break;
-        case 'RepairCenter':
-            header("Location: repair/index.php");
-            break;
-        case 'EmergencyService':
-            header("Location: emergency/index.php");
-            break;
-    }
-    exit;
-}
-
-// Get user data
-$user_id = $_SESSION['user_id'];
-$user_data = get_user_data($user_id);
-$notification_count = get_unread_notification_count($user_id);
-$dashboard_summary = get_policyholder_dashboard_summary($user_id);
-
-// Fetch recent claims
-$sql = "SELECT ar.*, c.make, c.model, c.number_plate 
-        FROM accident_report ar 
-        JOIN car c ON ar.car_id = c.Id 
-        WHERE ar.user_id = ? 
-        ORDER BY ar.accident_date DESC 
-        LIMIT 4";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$recent_claims = $stmt->get_result();
-
-// Fetch recent activities
-$sql = "SELECT n.* 
-        FROM notification n 
-        WHERE n.user_id = ? 
-        ORDER BY n.created_at DESC 
-        LIMIT 4";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$recent_activities = $stmt->get_result();
-
-// Get user initials for avatar
-$name_parts = explode(' ', $_SESSION['user_name']);
-$initials = '';
-foreach ($name_parts as $part) {
-    $initials .= strtoupper(substr($part, 0, 1));
-}
+// Redirect to appropriate dashboard based on user type
+redirect_user($_SESSION['user_type']);
 ?>
 <!DOCTYPE html>
 <html lang="en">

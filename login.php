@@ -2,43 +2,22 @@
 require_once 'includes/db_connect.php';
 require_once 'includes/functions.php';
 
-// Check if user is already logged in
-if (is_logged_in()) {
-    switch ($_SESSION['user_type']) {
-        case 'Admin':
-            header("Location: admin/index.php");
-            break;
-        case 'Adjuster':
-            header("Location: insurance/index.php");
-            break;
-        case 'RepairCenter':
-            header("Location: repair/index.php");
-            break;
-        case 'EmergencyService':
-            header("Location: emergency/index.php");
-            break;
-        default:
-            header("Location: users/index.php");
-            break;
-    }
-    exit;
+// Redirect if already logged in
+if (isset($_SESSION['user_id'])) {
+    redirect_user($_SESSION['user_type']);
 }
 
-$error = '';
-$success = '';
+$error_message = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = sanitize_input($_POST['email']);
     $password = $_POST['password'];
     
-    // Rate limiting
-    if (!rate_limit_check($email, LOGIN_ATTEMPTS_LIMIT, LOGIN_LOCKOUT_TIME)) {
-        $error = "Too many login attempts. Please try again later.";
-    } elseif (empty($email) || empty($password)) {
-        $error = "Please enter both email and password.";
+    if (empty($email) || empty($password)) {
+        $error_message = "Please enter both email and password.";
     } else {
         // Check user credentials
-        $stmt = $conn->prepare("SELECT Id, first_name, second_name, last_name, email, password, user_type, is_active FROM user WHERE email = ?");
+        $stmt = $conn->prepare("SELECT Id, first_name, last_name, email, password, user_type, is_active FROM user WHERE email = ?");
         $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -47,45 +26,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user = $result->fetch_assoc();
             
             if (!$user['is_active']) {
-                $error = "Your account has been deactivated. Please contact support.";
-            } elseif (verify_password($password, $user['password'])) {
-                // Login successful
+                $error_message = "Your account has been deactivated. Please contact administrator.";
+            } elseif (password_verify($password, $user['password'])) {
+                // Successful login
                 $_SESSION['user_id'] = $user['Id'];
-                $_SESSION['user_name'] = trim($user['first_name'] . ' ' . $user['second_name'] . ' ' . $user['last_name']);
+                $_SESSION['user_name'] = $user['first_name'] . ' ' . $user['last_name'];
                 $_SESSION['user_email'] = $user['email'];
                 $_SESSION['user_type'] = $user['user_type'];
                 
-                // Log the login
-                log_activity($user['Id'], "User Login", "User logged in successfully");
+                // Log activity
+                log_activity($user['Id'], "Login", "User logged into the system");
                 
                 // Redirect based on user type
-                switch ($user['user_type']) {
-                    case 'Admin':
-                        header("Location: admin/index.php");
-                        break;
-                    case 'Adjuster':
-                        header("Location: insurance/index.php");
-                        break;
-                    case 'RepairCenter':
-                        header("Location: repair/index.php");
-                        break;
-                    case 'EmergencyService':
-                        header("Location: emergency/index.php");
-                        break;
-                    default:
-                        header("Location: users/index.php");
-                        break;
-                }
-                exit;
+                redirect_user($user['user_type']);
             } else {
-                $error = "Invalid email or password.";
+                $error_message = "Invalid email or password.";
             }
         } else {
-            $error = "Invalid email or password.";
+            $error_message = "Invalid email or password.";
         }
     }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -104,31 +67,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         :root {
             --primary-color: #0056b3;
             --secondary-color: #00b359;
-            --dark-color: #333;
-            --light-color: #f4f4f4;
             --danger-color: #dc3545;
-            --success-color: #28a745;
+            --dark-color: #333;
+            --light-color: #f8f9fa;
         }
         
         body {
+            line-height: 1.6;
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
         .login-container {
             background-color: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
             overflow: hidden;
             width: 100%;
             max-width: 900px;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            min-height: 600px;
+            min-height: 500px;
         }
         
         .login-form {
@@ -141,7 +105,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .login-info {
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
-            padding: 60px 40px;
+            padding: 40px;
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -150,18 +114,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         .logo {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
         }
         
         .logo h1 {
             color: var(--primary-color);
-            font-size: 2rem;
+            font-size: 2.5rem;
+            font-weight: 700;
             margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
         
         .logo p {
-            color: #777;
-            font-size: 0.9rem;
+            color: #666;
+            font-size: 1rem;
         }
         
         .form-group {
@@ -171,151 +140,181 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            color: var(--dark-color);
             font-weight: 500;
+            color: var(--dark-color);
         }
         
-        .input-group {
-            position: relative;
-        }
-        
-        .input-group input {
+        .form-group input {
             width: 100%;
-            padding: 15px 20px 15px 50px;
-            border: 2px solid #eee;
-            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
             font-size: 1rem;
-            transition: all 0.3s;
+            transition: border-color 0.3s, box-shadow 0.3s;
         }
         
-        .input-group input:focus {
-            border-color: var(--primary-color);
+        .form-group input:focus {
             outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.1);
         }
         
-        .input-group i {
-            position: absolute;
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #999;
-        }
-        
-        .btn-login {
+        .btn {
             width: 100%;
             padding: 15px;
             background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             font-size: 1.1rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s;
             margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         
-        .btn-login:hover {
+        .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 86, 179, 0.3);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
         }
         
-        .links {
+        .register-link {
             text-align: center;
         }
         
-        .links a {
+        .register-link a {
             color: var(--primary-color);
             text-decoration: none;
             font-weight: 500;
         }
         
-        .links a:hover {
+        .register-link a:hover {
             text-decoration: underline;
-        }
-        
-        .divider {
-            text-align: center;
-            margin: 20px 0;
-            position: relative;
-        }
-        
-        .divider::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background-color: #eee;
-        }
-        
-        .divider span {
-            background-color: white;
-            padding: 0 15px;
-            color: #999;
-            font-size: 0.9rem;
         }
         
         .alert {
             padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-        }
-        
-        .alert-error {
+            border-radius: 8px;
+            margin-bottom: 25px;
             background-color: rgba(220, 53, 69, 0.1);
             border: 1px solid rgba(220, 53, 69, 0.2);
             color: var(--danger-color);
-        }
-        
-        .alert-success {
-            background-color: rgba(40, 167, 69, 0.1);
-            border: 1px solid rgba(40, 167, 69, 0.2);
-            color: var(--success-color);
-        }
-        
-        .info-content h2 {
-            font-size: 2rem;
-            margin-bottom: 20px;
-        }
-        
-        .info-content p {
-            font-size: 1.1rem;
-            margin-bottom: 30px;
-            opacity: 0.9;
-        }
-        
-        .features {
-            list-style: none;
-            text-align: left;
-        }
-        
-        .features li {
-            margin-bottom: 15px;
             display: flex;
             align-items: center;
         }
         
-        .features li i {
-            margin-right: 15px;
+        .alert i {
+            margin-right: 10px;
+        }
+        
+        .info-content h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+        
+        .info-content p {
             font-size: 1.2rem;
+            line-height: 1.8;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+        
+        .features {
+            text-align: left;
+        }
+        
+        .feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .feature i {
+            margin-right: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .feature span {
+            font-size: 1.1rem;
+        }
+        
+        .forgot-password {
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .forgot-password a {
+            color: #666;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        
+        .forgot-password a:hover {
+            color: var(--primary-color);
+            text-decoration: underline;
+        }
+        
+        /* Demo credentials */
+        .demo-credentials {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .demo-credentials h4 {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        
+        .demo-item {
+            font-size: 0.8rem;
+            margin-bottom: 5px;
+            opacity: 0.8;
         }
         
         /* Responsive */
-        @media (max-width: 768px) {
+        @media (max-width: 991px) {
             .login-container {
                 grid-template-columns: 1fr;
-                max-width: 400px;
+                max-width: 450px;
             }
             
             .login-info {
-                display: none;
+                order: -1;
+                padding: 30px;
             }
             
             .login-form {
                 padding: 40px 30px;
+            }
+            
+            .logo h1 {
+                font-size: 2rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            
+            .login-container {
+                margin: 0;
+            }
+            
+            .login-form {
+                padding: 30px 20px;
+            }
+            
+            .login-info {
+                padding: 20px;
             }
         }
     </style>
@@ -324,69 +323,92 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="login-container">
         <div class="login-form">
             <div class="logo">
-                <h1>APEX ASSURANCE</h1>
-                <p>Motor Vehicle Insurance System</p>
+                <h1>
+                    <i class="fas fa-shield-alt"></i>
+                    Apex Assurance
+                </h1>
+                <p>Welcome Back</p>
             </div>
             
-            <?php if (!empty($error)): ?>
-                <div class="alert alert-error">
-                    <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
-                </div>
-            <?php endif; ?>
-            
-            <?php if (!empty($success)): ?>
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle"></i> <?php echo $success; ?>
+            <?php if (!empty($error_message)): ?>
+                <div class="alert">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <?php echo htmlspecialchars($error_message); ?>
                 </div>
             <?php endif; ?>
             
             <form method="POST">
                 <div class="form-group">
                     <label for="email">Email Address</label>
-                    <div class="input-group">
-                        <i class="fas fa-envelope"></i>
-                        <input type="email" id="email" name="email" placeholder="Enter your email" 
-                               value="<?php echo isset($email) ? htmlspecialchars($email) : ''; ?>" required>
-                    </div>
+                    <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>" required>
                 </div>
                 
                 <div class="form-group">
                     <label for="password">Password</label>
-                    <div class="input-group">
-                        <i class="fas fa-lock"></i>
-                        <input type="password" id="password" name="password" placeholder="Enter your password" required>
-                    </div>
+                    <input type="password" id="password" name="password" required>
                 </div>
                 
-                <button type="submit" class="btn-login">
-                    <i class="fas fa-sign-in-alt"></i> Sign In
+                <button type="submit" class="btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Login
                 </button>
             </form>
             
-            <div class="divider">
-                <span>or</span>
+            <div class="forgot-password">
+                <a href="#">Forgot your password?</a>
             </div>
             
-            <div class="links">
-                <p>Don't have an account? <a href="register.php">Create Account</a></p>
-                <p><a href="forgot-password.php">Forgot Password?</a></p>
-                <p><a href="index.php">Back to Home</a></p>
+            <div class="register-link">
+                Don't have an account? <a href="register.php">Register here</a>
             </div>
         </div>
         
         <div class="login-info">
             <div class="info-content">
-                <h2>Welcome Back!</h2>
-                <p>Access your insurance dashboard and manage your motor vehicle policies with ease.</p>
+                <h2>Welcome to Apex Assurance</h2>
+                <p>Your trusted partner in comprehensive insurance management solutions.</p>
                 
-                <ul class="features">
-                    <li><i class="fas fa-car-crash"></i> Report accidents instantly</li>
-                    <li><i class="fas fa-chart-line"></i> Track claim progress</li>
-                    <li><i class="fas fa-shield-alt"></i> Manage your policies</li>
-                    <li><i class="fas fa-phone-alt"></i> 24/7 emergency support</li>
-                </ul>
+                <div class="features">
+                    <div class="feature">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Secure & Reliable</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-users"></i>
+                        <span>Expert Support</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Advanced Analytics</span>
+                    </div>
+                </div>
+                
+                <div class="demo-credentials">
+                    <h4>Demo Credentials:</h4>
+                    <div class="demo-item"><strong>Admin:</strong> admin@apex.com / password123</div>
+                    <div class="demo-item"><strong>User:</strong> user@apex.com / password123</di</div>
+                    <div class="demo-item"><strong>Adjuster:</strong> adjuster@apex.com / password123</div>
+                    <div class="demo-item"><strong>Repair:</strong> repair@apex.com / password123</div>
+                </div>
             </div>
         </div>
     </div>
+    
+    <script>
+        // Add some interactive feedback
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputs = document.querySelectorAll('input');
+            
+            inputs.forEach(input => {
+                input.addEventListener('focus', function() {
+                    this.parentElement.style.transform = 'translateY(-2px)';
+                });
+                
+                input.addEventListener('blur', function() {
+                    this.parentElement.style.transform = 'translateY(0)';
+                });
+            });
+        });
+    </script>
 </body>
 </html>
